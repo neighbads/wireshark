@@ -13314,47 +13314,47 @@ For example, use 1 hour to have a new file created every hour on the hour.</sour
     <name>TrafficTree</name>
     <message>
         <source>Resize all columns to content</source>
-        <translation type="unfinished"></translation>
+        <translation>调整所有列宽以适应内容</translation>
     </message>
     <message>
         <source>Filter on stream id</source>
-        <translation type="unfinished"></translation>
+        <translation>按流 ID 过滤</translation>
     </message>
     <message>
         <source>Copy %1 table</source>
-        <translation type="unfinished"></translation>
+        <translation>复制 %1 表</translation>
     </message>
     <message>
         <source>as CSV</source>
-        <translation type="unfinished">作为 CSV</translation>
+        <translation>作为 CSV</translation>
     </message>
     <message>
         <source>Copy all values of this page to the clipboard in CSV (Comma Separated Values) format.</source>
-        <translation type="unfinished"></translation>
+        <translation>以 CSV（逗号分隔值）格式将此页所有值复制到剪贴板。</translation>
     </message>
     <message>
         <source>as YAML</source>
-        <translation type="unfinished">作为YAML</translation>
+        <translation>作为 YAML</translation>
     </message>
     <message>
         <source>Copy all values of this page to the clipboard in the YAML data serialization format.</source>
-        <translation type="unfinished"></translation>
+        <translation>以 YAML 数据序列化格式将此页所有值复制到剪贴板。</translation>
     </message>
     <message>
         <source>as JSON</source>
-        <translation type="unfinished"></translation>
+        <translation>作为 JSON</translation>
     </message>
     <message>
         <source>Copy all values of this page to the clipboard in the JSON data serialization format.</source>
-        <translation type="unfinished"></translation>
+        <translation>以 JSON 数据序列化格式将此页所有值复制到剪贴板。</translation>
     </message>
     <message>
         <source>Save data as raw</source>
-        <translation type="unfinished"></translation>
+        <translation>以原始数据保存</translation>
     </message>
     <message>
         <source>Disable data formatting for export/clipboard and save as raw data</source>
-        <translation type="unfinished"></translation>
+        <translation>禁用数据格式化，以原始数据导出/复制到剪贴板</translation>
     </message>
     <message>
         <source>Follow</source>
@@ -13369,27 +13369,27 @@ For example, use 1 hour to have a new file created every hour on the hour.</sour
     <name>TrafficTreeHeaderView</name>
     <message>
         <source>Less than</source>
-        <translation type="unfinished"></translation>
+        <translation>小于</translation>
     </message>
     <message>
         <source>Greater than</source>
-        <translation type="unfinished"></translation>
+        <translation>大于</translation>
     </message>
     <message>
         <source>Equal</source>
-        <translation type="unfinished"></translation>
+        <translation>等于</translation>
     </message>
     <message>
         <source>Columns to display</source>
-        <translation type="unfinished"></translation>
+        <translation>要显示的列</translation>
     </message>
     <message>
         <source>Filter %1 by</source>
-        <translation type="unfinished"></translation>
+        <translation>按条件过滤 %1</translation>
     </message>
     <message>
         <source>Enter filter value</source>
-        <translation type="unfinished"></translation>
+        <translation>输入过滤值</translation>
     </message>
 </context>
 <context>

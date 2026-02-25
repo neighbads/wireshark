@@ -398,6 +398,21 @@ if(NOT MSVC)
 	endif()
 endif()
 
+# Software update URL.
+# WIRESHARK_UPDATE_FULL_URL takes precedence if set (used as-is).
+# Otherwise WIRESHARK_UPDATE_BASE_URL is used with the standard path format.
+if(DEFINED ENV{WIRESHARK_UPDATE_FULL_URL})
+	set(SOFTWARE_UPDATE_FULL_URL "$ENV{WIRESHARK_UPDATE_FULL_URL}")
+else()
+	set(SOFTWARE_UPDATE_FULL_URL "")
+endif()
+
+if(DEFINED ENV{WIRESHARK_UPDATE_BASE_URL})
+	set(SOFTWARE_UPDATE_BASE_URL "$ENV{WIRESHARK_UPDATE_BASE_URL}")
+else()
+	set(SOFTWARE_UPDATE_BASE_URL "https://www.wireshark.org")
+endif()
+
 # Banner shown at top right of Qt welcome screen.
 if(DEFINED ENV{WIRESHARK_VERSION_FLAVOR})
 	set(VERSION_FLAVOR "$ENV{WIRESHARK_VERSION_FLAVOR}")

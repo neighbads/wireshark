@@ -74,14 +74,22 @@ static char *get_appcast_update_url(software_update_channel_e chan, const char* 
             chan_name = "stable";
             break;
     }
-    g_string_printf(update_url_str, "https://www.wireshark.org/%s/%u/%s/%s/%s/%s/en-US/%s.xml",
-                    SU_SCHEMA_PREFIX,
-                    SU_SCHEMA_VERSION,
-                    su_application,
-                    su_version,
-                    SU_OSNAME,
-                    SU_ARCH,
-                    chan_name);
+
+    if (SOFTWARE_UPDATE_FULL_URL[0] != '\0') {
+        /* Use the full URL directly, no path appended */
+        g_string_assign(update_url_str, SOFTWARE_UPDATE_FULL_URL);
+    } else {
+        /* Use base URL with standard wireshark.org path format */
+        g_string_printf(update_url_str, "%s/%s/%u/%s/%s/%s/%s/en-US/%s.xml",
+                        SOFTWARE_UPDATE_BASE_URL,
+                        SU_SCHEMA_PREFIX,
+                        SU_SCHEMA_VERSION,
+                        su_application,
+                        su_version,
+                        SU_OSNAME,
+                        SU_ARCH,
+                        chan_name);
+    }
     return g_string_free(update_url_str, FALSE);
 }
 

@@ -22,6 +22,10 @@
 #define PLUGIN_PATH_ID "${PLUGIN_PATH_ID}"
 #define VERSION_FLAVOR "${VERSION_FLAVOR}"
 
+/* Software update URL configuration */
+#define SOFTWARE_UPDATE_BASE_URL "${SOFTWARE_UPDATE_BASE_URL}"
+#define SOFTWARE_UPDATE_FULL_URL "${SOFTWARE_UPDATE_FULL_URL}"
+
 /* Build wsutil with SIMD optimization */
 #cmakedefine HAVE_SSE4_2 1
 

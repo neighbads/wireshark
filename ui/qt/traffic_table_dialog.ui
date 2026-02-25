@@ -69,6 +69,13 @@
             </widget>
            </item>
            <item>
+            <widget class="ElidedLabel" name="displayFilterLabel">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -147,6 +154,11 @@
    <class>TrafficTypesList</class>
    <extends>QTreeView</extends>
    <header>ui/qt/widgets/traffic_types_list.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ElidedLabel</class>
+   <extends>QLabel</extends>
+   <header>widgets/elided_label.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

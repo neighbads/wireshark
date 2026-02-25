@@ -33,12 +33,15 @@
 #include <QTabWidget>
 #include <QTreeWidget>
 #include <QTextStream>
+#include <QTimer>
 #include <QToolButton>
 #include <QTreeView>
 
 TrafficTableDialog::TrafficTableDialog(QWidget &parent, CaptureFile &cf, const QString &table_name) :
     WiresharkDialog(parent, cf),
-    ui(new Ui::TrafficTableDialog)
+    ui(new Ui::TrafficTableDialog),
+    self_retap_(true),
+    display_filter_(cf.displayFilter())
 {
     ui->setupUi(this);
     loadGeometry(parent.width(), parent.height() * 3 / 4);
@@ -50,13 +53,13 @@ TrafficTableDialog::TrafficTableDialog(QWidget &parent, CaptureFile &cf, const Q
     copy_bt_ = buttonBox()->addButton(tr("Copy"), QDialogButtonBox::ActionRole);
     copy_bt_->setMenu(ui->trafficTab->createCopyMenu(copy_bt_));
 
-    if (cf.displayFilter().length() > 0) {
-        ui->displayFilterCheckBox->setChecked(true);
-        ui->trafficTab->limitToDisplayFilter(true);
-    }
+    // Default: do not limit to display filter
 
     connect(ui->machineReadableCheckBox, &QCheckBox::toggled, ui->trafficTab, &TrafficTab::setMachineReadable);
     ui->machineReadableCheckBox->setChecked(prefs.conv_machine_readable);
+
+    ui->displayFilterLabel->setSmallText();
+    updateDisplayFilterLabel();
 
     ui->trafficTab->setFocus();
     ui->trafficTab->useNanosecondTimestamps(cf.timestampPrecision() == WTAP_TSPREC_NSEC || cf.timestampPrecision() == WTAP_TSPREC_PER_PACKET);
@@ -69,7 +72,23 @@ TrafficTableDialog::TrafficTableDialog(QWidget &parent, CaptureFile &cf, const Q
     connect(&cap_file_, SIGNAL(captureEvent(CaptureEvent)), this, SLOT(captureEvent(CaptureEvent)));
 
     connect(ui->absoluteTimeCheckBox, &QCheckBox::toggled, ui->trafficTab, &TrafficTab::useAbsoluteTime);
-    connect(ui->trafficTab, &TrafficTab::retapRequired, &cap_file_, &CaptureFile::delayedRetapPackets);
+    connect(ui->trafficTab, &TrafficTab::retapRequired, this, [this]() {
+        /* Schedule a retap on the next event-loop iteration so the UI is
+         * fully constructed before tapping starts.  We set self_retap_ and
+         * ignoreRetap inside the timer callback — right before the
+         * synchronous cf_retap_packets — so that an intervening retap from
+         * another dialog cannot clear self_retap_ in our Finished handler
+         * before we actually start our own retap. */
+        QTimer::singleShot(0, this, [this]() {
+            if (!cap_file_.isValid())
+                return;
+            ui->trafficTab->setIgnoreRetap(false);
+            self_retap_ = true;
+            cap_file_.retapPackets();
+            // cf_retap_packets is synchronous — Flushed/draw_tap_listeners already ran
+            ui->trafficTab->setIgnoreRetap(!ui->displayFilterCheckBox->isChecked());
+        });
+    });
 
     connect(ui->trafficListSearch, &QLineEdit::textChanged, ui->trafficList, &TrafficTypesList::filterList);
     connect(ui->trafficList, &TrafficTypesList::clearFilterList, ui->trafficListSearch, &QLineEdit::clear);
@@ -157,7 +176,10 @@ void TrafficTableDialog::aggregationSummaryOnlyCheckBoxToggled(bool checked)
         atdm->updateFlags(checked);
     }
 
+    ui->trafficTab->setIgnoreRetap(false);
+    self_retap_ = true;
     cap_file_.retapPackets();
+    ui->trafficTab->setIgnoreRetap(!ui->displayFilterCheckBox->isChecked());
 }
 
 void TrafficTableDialog::on_nameResolutionCheckBox_toggled(bool checked)
@@ -171,8 +193,23 @@ void TrafficTableDialog::displayFilterCheckBoxToggled(bool set_filter)
         return;
     }
 
+    if (set_filter) {
+        ui->trafficTab->setFilter(display_filter_);
+    }
     ui->trafficTab->limitToDisplayFilter(set_filter);
+    ui->trafficTab->setIgnoreRetap(false);
+    self_retap_ = true;
     cap_file_.retapPackets();
+    ui->trafficTab->setIgnoreRetap(!ui->displayFilterCheckBox->isChecked());
+}
+
+void TrafficTableDialog::updateDisplayFilterLabel()
+{
+    if (display_filter_.isEmpty()) {
+        ui->displayFilterLabel->setText(tr("No display filter set."));
+    } else {
+        ui->displayFilterLabel->setText(tr("Display filter: \"%1\"").arg(display_filter_));
+    }
 }
 
 void TrafficTableDialog::captureEvent(CaptureEvent e)
@@ -183,9 +220,49 @@ void TrafficTableDialog::captureEvent(CaptureEvent e)
         {
         case CaptureEvent::Started:
             ui->displayFilterCheckBox->setEnabled(false);
+            if (!self_retap_) {
+                ui->trafficTab->setIgnoreRetap(true);
+            }
             break;
         case CaptureEvent::Finished:
             ui->displayFilterCheckBox->setEnabled(true);
+            self_retap_ = false;
+            if (ui->trafficTab->ignoreRetap()) {
+                /* External retap — keep ignoreRetap based on checkbox state. */
+                ui->trafficTab->setIgnoreRetap(!ui->displayFilterCheckBox->isChecked());
+                return;
+            }
+            /* Self-initiated retap: don't set ignoreRetap here —
+             * the caller (retapPackets/timer/toggle) will do it after
+             * cap_file_.retapPackets() returns, ensuring tapDraw runs first. */
+            break;
+        default:
+            break;
+        }
+    }
+    else if (e.captureContext() == CaptureEvent::Rescan)
+    {
+        /* For external Rescan events (e.g. Follow Stream changing the display
+         * filter): if "Limit to display filter" is checked, ignoreRetap is
+         * false and the rescan refreshes data naturally. If unchecked,
+         * ignoreRetap is true and tapReset/tapPacket/tapDraw are skipped,
+         * preserving existing data. */
+        switch (e.eventType())
+        {
+        case CaptureEvent::Started:
+            ui->displayFilterCheckBox->setEnabled(false);
+            break;
+        case CaptureEvent::Finished:
+            display_filter_ = cap_file_.displayFilter();
+            updateDisplayFilterLabel();
+            ui->displayFilterCheckBox->setEnabled(true);
+            if (ui->displayFilterCheckBox->isChecked()) {
+                ui->trafficTab->setFilter(display_filter_);
+                ui->trafficTab->setIgnoreRetap(false);
+                self_retap_ = true;
+                cap_file_.retapPackets();
+                ui->trafficTab->setIgnoreRetap(!ui->displayFilterCheckBox->isChecked());
+            }
             break;
         default:
             break;

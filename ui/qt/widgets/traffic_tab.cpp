@@ -79,6 +79,7 @@ TrafficTab::TrafficTab(QWidget * parent) :
     _limitToDisplayFilter = false;
     _nanoseconds = false;
     _machineReadable = false;
+    _ignoreRetap = false;
     setTabBasename(QString());
 }
 
@@ -189,6 +190,8 @@ QTreeView * TrafficTab::createTree(int protoId)
          * tree data models are identical */
         connect(tree, &TrafficTree::columnsHaveChanged, this, &TrafficTab::columnsHaveChanged);
         connect(this, &TrafficTab::columnsHaveChanged, tree, &TrafficTree::columnsChanged);
+        connect(tree, &TrafficTree::followStream, this, &TrafficTab::followStream);
+        connect(tree, &QTreeView::doubleClicked, this, &TrafficTab::itemDoubleClicked);
     }
 
     return tree;
@@ -598,6 +601,21 @@ ATapDataModel * TrafficTab::dataModelForTabIndex(int tabIdx)
         tabIdx = currentIndex();
 
     return dataModelForWidget(widget(tabIdx));
+}
+
+void TrafficTab::setIgnoreRetap(bool ignore)
+{
+    _ignoreRetap = ignore;
+    for (int i = 0; i < count(); i++) {
+        ATapDataModel * dm = dataModelForTabIndex(i);
+        if (dm)
+            dm->setIgnoreRetap(ignore);
+    }
+}
+
+bool TrafficTab::ignoreRetap() const
+{
+    return _ignoreRetap;
 }
 
 ATapDataModel * TrafficTab::dataModelForWidget(QWidget * searchWidget)

@@ -209,6 +209,9 @@ public:
     void useNanosecondTimestamps(bool useNSTime);
     ATapDataModel * dataModelForTabIndex(int tabIdx = -1);
 
+    void setIgnoreRetap(bool ignore);
+    bool ignoreRetap() const;
+
 public slots:
 
     /**
@@ -229,6 +232,8 @@ signals:
     void disablingTaps();
     void tabsChanged(QList<int> protocols);
     void columnsHaveChanged(QList<int> columns);
+    void followStream(int proto_id, unsigned conv_id);
+    void itemDoubleClicked(const QModelIndex &index);
 
 protected slots:
 
@@ -249,6 +254,7 @@ private:
     bool _limitToDisplayFilter;
     bool _nanoseconds;
     bool _machineReadable;
+    bool _ignoreRetap;
 
     QTreeView * createTree(int protoId);
     TrafficDataFilterProxy * modelForTabIndex(int tabIdx = -1);

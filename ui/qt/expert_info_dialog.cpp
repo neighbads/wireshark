@@ -40,11 +40,12 @@ ExpertInfoDialog::ExpertInfoDialog(QWidget &parent, CaptureFile &capture_file, Q
     ui(new Ui::ExpertInfoDialog),
     expert_info_model_(new ExpertInfoModel(capture_file)),
     proxyModel_(new ExpertInfoProxyModel(this)),
-    display_filter_(displayFilter)
+    display_filter_(displayFilter),
+    self_retap_(true)
 {
     ui->setupUi(this);
     ui->hintLabel->setSmallText();
-    ui->limitCheckBox->setChecked(! display_filter_.isEmpty());
+    ui->limitCheckBox->setChecked(false);
     connect(ui->limitCheckBox, &QCheckBox::toggled,
             this, &ExpertInfoDialog::limitCheckBoxToggled);
 
@@ -108,22 +109,6 @@ ExpertInfoDialog::ExpertInfoDialog(QWidget &parent, CaptureFile &capture_file, Q
     ctx_menu_.addAction(expand);
     connect(expand, &QAction::triggered, this, &ExpertInfoDialog::expandTree);
 
-    // Add Follow Stream submenu
-    QMenu *follow_menu = ctx_menu_.addMenu(tr("Follow Stream"));
-    follow_iterate_followers(
-        [](const void *key _U_, void *value, void *userdata) -> bool {
-            register_follow_t *follow = (register_follow_t *)value;
-            QMenu *menu = (QMenu *)userdata;
-            int proto_id = get_follow_proto_id(follow);
-            QString proto_name = proto_get_protocol_short_name(find_protocol_by_id(proto_id));
-            QAction *action = menu->addAction(QStringLiteral("%1 Stream").arg(proto_name));
-            action->setData(proto_id);
-            return false;
-        }, follow_menu);
-    connect(follow_menu, &QMenu::triggered, this, [this](QAction *action) {
-        emit openFollowStreamDialog(action->data().toInt());
-    });
-
     connect(&cap_file_, &CaptureFile::captureEvent, this, &ExpertInfoDialog::captureEvent);
 
     // Disable Qt's built-in expand/collapse on double-click so our
@@ -173,7 +158,11 @@ void ExpertInfoDialog::retapPackets()
         return;
     }
 
+    self_retap_ = true;
+    expert_info_model_->setIgnoreRetap(false);
     cap_file_.retapPackets();
+    // cf_retap_packets is synchronous — Flushed/draw_tap_listeners already ran
+    expert_info_model_->setIgnoreRetap(!ui->limitCheckBox->isChecked());
 }
 
 void ExpertInfoDialog::captureEvent(CaptureEvent e)
@@ -185,18 +174,48 @@ void ExpertInfoDialog::captureEvent(CaptureEvent e)
         case CaptureEvent::Started:
             ui->limitCheckBox->setEnabled(false);
             ui->groupBySummaryCheckBox->setEnabled(false);
-            if (!ui->limitCheckBox->isChecked()) {
+            if (!self_retap_) {
                 expert_info_model_->setIgnoreRetap(true);
             }
             break;
         case CaptureEvent::Finished:
+            self_retap_ = false;
             if (expert_info_model_->ignoreRetap()) {
-                expert_info_model_->setIgnoreRetap(false);
+                /* External retap — set ignoreRetap based on checkbox state. */
+                expert_info_model_->setIgnoreRetap(!ui->limitCheckBox->isChecked());
                 ui->limitCheckBox->setEnabled(!file_closed_ && !display_filter_.isEmpty());
                 ui->groupBySummaryCheckBox->setEnabled(!file_closed_);
                 return;
             }
+            /* Self-initiated retap: don't set ignoreRetap here —
+             * retapPackets() will do it after cap_file_.retapPackets()
+             * returns, ensuring tapDraw runs first. */
             updateWidgets();
+            break;
+        default:
+            break;
+        }
+    }
+    else if (e.captureContext() == CaptureEvent::Rescan)
+    {
+        /* For external Rescan events (e.g. Follow Stream): if "Limit to
+         * display filter" is checked, ignoreRetap is false and the rescan
+         * refreshes data. If unchecked, ignoreRetap is true and data is
+         * preserved. */
+        switch (e.eventType())
+        {
+        case CaptureEvent::Started:
+            ui->limitCheckBox->setEnabled(false);
+            ui->groupBySummaryCheckBox->setEnabled(false);
+            break;
+        case CaptureEvent::Finished:
+            display_filter_ = cap_file_.displayFilter();
+            ui->limitCheckBox->setEnabled(!file_closed_ && !display_filter_.isEmpty());
+            ui->groupBySummaryCheckBox->setEnabled(!file_closed_);
+            updateWidgets();
+            if (ui->limitCheckBox->isChecked()) {
+                retapPackets();
+            }
             break;
         default:
             break;
@@ -289,7 +308,59 @@ void ExpertInfoDialog::showExpertInfoMenu(QPoint pos)
         action->setEnabled(action_enable);
     }
 
-    ctx_menu_.popup(ui->expertInfoTreeView->viewport()->mapToGlobal(pos));
+    // Build a dynamic Follow Stream submenu based on current packet's protocols
+    QMenu *follow_menu = nullptr;
+    if (!file_closed_ && cap_file_.capFile() && cap_file_.capFile()->edt) {
+        wmem_list_t *layers = cap_file_.capFile()->edt->pi.layers;
+        bool is_quic = proto_is_frame_protocol(layers, "quic");
+
+        struct FollowMenuContext {
+            QMenu *menu;
+            wmem_list_t *layers;
+            bool is_quic;
+        } ctx = { nullptr, layers, is_quic };
+
+        follow_iterate_followers(
+            [](const void *key _U_, void *value, void *userdata) -> bool {
+                register_follow_t *follow = (register_follow_t *)value;
+                FollowMenuContext *ctx = (FollowMenuContext *)userdata;
+                int proto_id = get_follow_proto_id(follow);
+                const char *filter_name = proto_get_protocol_filter_name(proto_id);
+                bool is_frame = proto_is_frame_protocol(ctx->layers, filter_name);
+                // TLS is disabled when QUIC is present
+                if (g_strcmp0(filter_name, "tls") == 0) {
+                    is_frame = is_frame && !ctx->is_quic;
+                }
+                if (is_frame) {
+                    if (!ctx->menu) {
+                        ctx->menu = new QMenu();
+                    }
+                    QString proto_name = proto_get_protocol_short_name(find_protocol_by_id(proto_id));
+                    QAction *action = ctx->menu->addAction(ExpertInfoDialog::tr("%1 Stream").arg(proto_name));
+                    action->setData(proto_id);
+                }
+                return false;
+            }, &ctx);
+
+        follow_menu = ctx.menu;
+    }
+
+    // Build the final context menu with the dynamic follow submenu
+    QMenu popup(this);
+    foreach (QAction *action, ctx_menu_.actions()) {
+        popup.addAction(action);
+    }
+    if (follow_menu) {
+        popup.addSeparator();
+        follow_menu->setTitle(tr("Follow"));
+        popup.addMenu(follow_menu);
+        connect(follow_menu, &QMenu::triggered, this, [this](QAction *action) {
+            emit openFollowStreamDialog(action->data().toInt());
+        });
+    }
+
+    popup.exec(ui->expertInfoTreeView->viewport()->mapToGlobal(pos));
+    delete follow_menu;
 }
 
 void ExpertInfoDialog::filterActionTriggered()
@@ -383,8 +454,34 @@ void ExpertInfoDialog::followStream()
     if (!cap_file_.capFile()->edt)
         return;
 
-    int proto_id = proto_get_id_by_short_name("TCP");
-    emit openFollowStreamDialog(proto_id);
+    // Find the first follow protocol that matches the current packet
+    wmem_list_t *layers = cap_file_.capFile()->edt->pi.layers;
+    bool is_quic = proto_is_frame_protocol(layers, "quic");
+
+    struct FollowContext {
+        wmem_list_t *layers;
+        bool is_quic;
+        int found_proto_id;
+    } ctx = { layers, is_quic, -1 };
+
+    follow_iterate_followers(
+        [](const void *key _U_, void *value, void *userdata) -> bool {
+            register_follow_t *follow = (register_follow_t *)value;
+            FollowContext *ctx = (FollowContext *)userdata;
+            if (ctx->found_proto_id >= 0)
+                return false;
+            int proto_id = get_follow_proto_id(follow);
+            const char *filter_name = proto_get_protocol_filter_name(proto_id);
+            bool is_frame = proto_is_frame_protocol(ctx->layers, filter_name);
+            if (g_strcmp0(filter_name, "tls") == 0)
+                is_frame = is_frame && !ctx->is_quic;
+            if (is_frame)
+                ctx->found_proto_id = proto_id;
+            return false;
+        }, &ctx);
+
+    if (ctx.found_proto_id >= 0)
+        emit openFollowStreamDialog(ctx.found_proto_id);
 }
 
 void ExpertInfoDialog::treeDoubleClicked(const QModelIndex &index)

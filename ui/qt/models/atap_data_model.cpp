@@ -56,6 +56,7 @@ ATapDataModel::ATapDataModel(dataModelType type, int protoId, QString filter, QO
 
     _type = type;
     _disableTap = true;
+    _ignoreRetap = false;
 
     _tapFlags = TL_IGNORE_DISPLAY_FILTER+TL_IP_AGGREGATION_ORI;
 
@@ -179,6 +180,16 @@ void ATapDataModel::limitToDisplayFilter(bool limit)
     set_tap_flags(&hash_, _tapFlags);
 }
 
+void ATapDataModel::setIgnoreRetap(bool ignore)
+{
+    _ignoreRetap = ignore;
+}
+
+bool ATapDataModel::ignoreRetap() const
+{
+    return _ignoreRetap;
+}
+
 int ATapDataModel::rowCount(const QModelIndex &parent) const
 {
     return (storage_ && !parent.isValid()) ? (int) storage_->len : 0;
@@ -191,6 +202,9 @@ void ATapDataModel::tapReset(void *tapdata) {
     conv_hash_t *hash = (conv_hash_t*)tapdata;
     ATapDataModel * dataModel = qobject_cast<ATapDataModel *>((ATapDataModel *)hash->user_data);
 
+    if (dataModel->ignoreRetap())
+        return;
+
     dataModel->resetData();
 }
 
@@ -201,6 +215,9 @@ void ATapDataModel::tapDraw(void *tapdata)
 
     conv_hash_t *hash = (conv_hash_t*)tapdata;
     ATapDataModel * dataModel = qobject_cast<ATapDataModel *>((ATapDataModel *)hash->user_data);
+
+    if (dataModel->ignoreRetap())
+        return;
 
     dataModel->updateData(hash->conv_array);
 }

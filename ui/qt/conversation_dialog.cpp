@@ -9,6 +9,7 @@
 
 #include "conversation_dialog.h"
 
+#include <epan/follow.h>
 #include <epan/prefs.h>
 #include <epan/to_str.h>
 #include <epan/dissectors/packet-tcp.h>
@@ -74,12 +75,15 @@ ConversationDialog::ConversationDialog(QWidget &parent, CaptureFile &cf) :
 
     trafficTab()->setProtocolInfo(table_name_, trafficList(), &(recent.conversation_tabs), &(recent.conversation_tabs_columns), &createModel);
     trafficTab()->setDelegate(&createDelegate);
-    trafficTab()->setDelegate(&createDelegate);
     trafficTab()->setFilter(cf.displayFilter());
 
     connect(trafficTab(), &TrafficTab::filterAction, this, &ConversationDialog::filterAction);
     connect(trafficTab()->tabBar(), &QTabBar::currentChanged, this, &ConversationDialog::tabChanged);
     connect(trafficTab(), &TrafficTab::tabDataChanged, this, &ConversationDialog::tabChanged);
+    connect(trafficTab(), &TrafficTab::followStream, this, [this](int proto_id, unsigned conv_id) {
+        emit openFollowStreamDialog(proto_id, conv_id, 0);
+    });
+    connect(trafficTab(), &TrafficTab::itemDoubleClicked, this, &ConversationDialog::conversationDoubleClicked);
 
     follow_bt_ = buttonBox()->addButton(tr("Follow Stream…"), QDialogButtonBox::ActionRole);
     follow_bt_->setToolTip(tr("Follow a TCP or UDP stream."));
@@ -96,6 +100,7 @@ ConversationDialog::ConversationDialog(QWidget &parent, CaptureFile &cf) :
     connect(mainApp->mainWindow(), &MainWindow::displayFilterSuccess, this, &ConversationDialog::displayFilterSuccess);
 
     absoluteTimeCheckBox()->show();
+    absoluteTimeCheckBox()->setChecked(true);
 
     updateWidgets();
 }
@@ -124,7 +129,7 @@ void ConversationDialog::followStream()
     if (get_follow_by_proto_id(protoId) == nullptr)
         return;
 
-    int convId = trafficTab()->currentItemData(ATapDataModel::CONVERSATION_ID).toInt();
+    unsigned convId = trafficTab()->currentItemData(ATapDataModel::CONVERSATION_ID).toUInt();
 
     // ATapDataModel doesn't support a substream ID (XXX: yet), so set it to a
     // dummy value.
@@ -295,6 +300,16 @@ void ConversationDialog::displayFilterSuccess(bool success)
         }
         tcp_graph_requested_ = false;
     }
+}
+
+void ConversationDialog::conversationDoubleClicked(const QModelIndex &index)
+{
+    Q_UNUSED(index);
+    if (file_closed_)
+        return;
+
+    // Double-click triggers Follow Stream (same as the Follow Stream button)
+    followStream();
 }
 
 void init_conversation_table(struct register_ct* ct, const char *filter)

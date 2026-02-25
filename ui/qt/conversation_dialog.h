@@ -45,6 +45,7 @@ private slots:
     void on_buttonBox_helpRequested();
     void displayFilterSuccess(bool success);
     void tabChanged(int idx);
+    void conversationDoubleClicked(const QModelIndex &index);
 };
 
 void init_conversation_table(struct register_ct* ct, const char *filter);

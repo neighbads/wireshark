@@ -82,6 +82,12 @@ private slots:
     void captureEvent(CaptureEvent e);
 
     virtual void on_buttonBox_helpRequested() = 0;
+
+private:
+    bool self_retap_;
+    QString display_filter_;
+
+    void updateDisplayFilterLabel();
 };
 
 #endif // TRAFFIC_TABLE_DIALOG_H

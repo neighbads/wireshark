@@ -12,8 +12,6 @@
 
 #include <config.h>
 
-#include <epan/follow.h>
-
 #include "filter_action.h"
 #include "wireshark_dialog.h"
 #include <ui/qt/models/expert_info_model.h>
@@ -51,6 +49,7 @@ private:
     QMenu ctx_menu_;
 
     QString display_filter_;
+    bool self_retap_;
 
 private slots:
     void retapPackets();

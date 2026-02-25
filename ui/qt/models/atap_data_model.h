@@ -166,6 +166,9 @@ public:
 
     void limitToDisplayFilter(bool limit);
 
+    void setIgnoreRetap(bool ignore);
+    bool ignoreRetap() const;
+
     /**
      * @brief Are ports hidden for this model
      *
@@ -247,6 +250,7 @@ protected:
     bool _resolveNames;
     bool _machineReadable;
     bool _disableTap;
+    bool _ignoreRetap;
 
     double _minRelStartTime;
     double _maxRelStopTime;

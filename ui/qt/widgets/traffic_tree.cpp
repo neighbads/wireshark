@@ -12,6 +12,7 @@
 #include <epan/prefs.h>
 #include <epan/maxmind_db.h>
 #include <epan/conversation_table.h>
+#include <epan/follow.h>
 
 #include <wsutil/utf8_entities.h>
 #include <wsutil/filesystem.h>
@@ -46,6 +47,7 @@
 #include <QActionGroup>
 #include <QDateTime>
 #include <QTime>
+#include <QTimer>
 
 MenuEditAction::MenuEditAction(QString text, QString hintText, QObject * parent) :
     QWidgetAction(parent),
@@ -699,6 +701,43 @@ void TrafficTree::customContextMenu(const QPoint &pos)
 
     ctxMenu->addSeparator();
     ctxMenu->addMenu(createCopyMenu());
+
+    // Add Follow Stream submenu for conversation models
+    if (isConv && idx.isValid()) {
+        ATapDataModel * dm = dataModel();
+        if (dm) {
+            QVariant protoIdData = dm->data(idx, ATapDataModel::PROTO_ID);
+            QVariant convIdData = dm->data(idx, ATapDataModel::CONVERSATION_ID);
+            if (!protoIdData.isNull() && !convIdData.isNull()) {
+                int protoId = protoIdData.toInt();
+                unsigned convId = convIdData.toUInt();
+                if (get_follow_by_proto_id(protoId) != nullptr) {
+                    ctxMenu->addSeparator();
+                    QString proto_name = proto_get_protocol_short_name(find_protocol_by_id(protoId));
+                    QMenu *follow_menu = ctxMenu->addMenu(tr("Follow"));
+                    QAction *action = follow_menu->addAction(tr("%1 Stream").arg(proto_name));
+                    action->setData(protoId);
+                    connect(follow_menu, &QMenu::triggered, this, [this, convId](QAction *action) {
+                        // Capture data before deferring — the action will be
+                        // destroyed when the context menu is deleted via
+                        // WA_DeleteOnClose / deleteLater.
+                        int protoId = action->data().toInt();
+                        // Defer the follow-stream work so that the QMenu
+                        // signal emission finishes and the menu can be safely
+                        // deleted.  Without this, filterPackets → rescan_packets
+                        // → update_progress_dlg → processEvents processes the
+                        // pending deleteLater, destroying the menu (and this
+                        // QAction) while we are still inside
+                        // QMenuPrivate::activateAction, causing a
+                        // use-after-free crash.
+                        QTimer::singleShot(0, this, [this, protoId, convId]() {
+                            emit followStream(protoId, convId);
+                        });
+                    });
+                }
+            }
+        }
+    }
 
     ctxMenu->addSeparator();
     QAction * act = ctxMenu->addAction(tr("Resize all columns to content"));

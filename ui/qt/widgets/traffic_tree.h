@@ -153,6 +153,7 @@ public:
 signals:
     void filterAction(QString filter, FilterAction::Action action, FilterAction::ActionType type);
     void columnsHaveChanged(QList<int> columns);
+    void followStream(int proto_id, unsigned conv_id);
 
 public slots:
     void tapListenerEnabled(bool enable);

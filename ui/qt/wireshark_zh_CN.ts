@@ -2884,6 +2884,14 @@ For example, use 1 hour to have a new file created every hour on the hour.</sour
         <source>Display filter: &quot;%1&quot;</source>
         <translation>显示过滤器：“%1”</translation>
     </message>
+    <message>
+        <source>Follow</source>
+        <translation>追踪流</translation>
+    </message>
+    <message>
+        <source>%1 Stream</source>
+        <translation>%1 流</translation>
+    </message>
 </context>
 <context>
     <name>ExpertInfoProxyModel</name>
@@ -13348,6 +13356,14 @@ For example, use 1 hour to have a new file created every hour on the hour.</sour
         <source>Disable data formatting for export/clipboard and save as raw data</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Follow</source>
+        <translation>追踪流</translation>
+    </message>
+    <message>
+        <source>%1 Stream</source>
+        <translation>%1 流</translation>
+    </message>
 </context>
 <context>
     <name>TrafficTreeHeaderView</name>
@@ -14904,7 +14920,27 @@ a:hover {
     </message>
     <message>
         <source>When checked, follow stream actions will show a new dialog window</source>
-        <translation>选中时，追踪流功能将显示新窗口</translation>
+        <translation>追踪流显示新的窗口</translation>
+    </message>
+    <message>
+        <source>Follow Stream</source>
+        <translation>追踪流</translation>
+    </message>
+    <message>
+        <source>Copy Packet List as CSV</source>
+        <translation>复制数据包列表为 CSV</translation>
+    </message>
+    <message>
+        <source>Copy Packet Bytes as Hex Stream</source>
+        <translation>复制数据包字节为十六进制流</translation>
+    </message>
+    <message>
+        <source>Copy All Visible Items</source>
+        <translation>复制所有可见项</translation>
+    </message>
+    <message>
+        <source>Colorize Conversation %1</source>
+        <translation>着色会话 %1</translation>
     </message>
     <message>
         <source>Seconds Since First Captured Packet</source>

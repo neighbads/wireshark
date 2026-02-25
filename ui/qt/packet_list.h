@@ -98,6 +98,7 @@ public:
     QList<int> selectedRows(bool useFrameNum = false);
 
     QString createSummaryText(QModelIndex idx, SummaryCopyType type);
+    QString createDetailedText(QList<int> rows);
     QString createHeaderSummaryText(SummaryCopyType type);
 
     QStringList createHeaderPartsForAligned();

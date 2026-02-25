@@ -1228,6 +1228,24 @@ void WiresharkMainWindow::setMenusForSelectedPacket()
     main_ui_->actionCopyListAsYAML->setEnabled(selectedRows().count() > 0);
     main_ui_->actionCopyListAsHTML->setEnabled(selectedRows().count() > 0);
 
+    // Custom toolbar buttons
+    bool has_follow = false;
+    if (capture_file_.capFile() && capture_file_.capFile()->edt && !multi_selection && frame_selected) {
+        foreach (FollowStreamAction *follow_action, main_ui_->menuFollow->findChildren<FollowStreamAction *>()) {
+            if (follow_action->isEnabled()) {
+                has_follow = true;
+                break;
+            }
+        }
+    }
+    action_toolbar_follow_stream_->setEnabled(has_follow);
+    action_toolbar_copy_csv_->setEnabled(selectedRows().count() > 0);
+    action_toolbar_copy_hex_stream_->setEnabled(capture_file_.capFile() != NULL && frame_selected && !multi_selection);
+    action_toolbar_copy_detailed_text_->setEnabled(capture_file_.capFile() != NULL && selectedRows().count() > 0);
+    for (int i = 0; i < 5; i++) {
+        action_toolbar_colorize_[i]->setEnabled(frame_selected && !multi_selection);
+    }
+
     main_ui_->actionEditMarkSelected->setEnabled(frame_selected || multi_selection);
     main_ui_->actionEditMarkAllDisplayed->setEnabled(have_frames);
     /* Unlike un-ignore, do not allow unmark of all frames when no frames are displayed  */
@@ -1373,7 +1391,7 @@ void WiresharkMainWindow::setMenusForSelectedTreeRow(FieldInformation *finfo) {
     }
 
     // Always enable / disable the following items.
-    main_ui_->actionCopyAllVisibleItems->setEnabled(capture_file_.capFile() != NULL && ! packet_list_->multiSelectActive());
+    main_ui_->actionCopyAllVisibleItems->setEnabled(capture_file_.capFile() != NULL && packet_list_->selectedRows().count() > 0);
     main_ui_->actionCopyAllVisibleSelectedTreeItems->setEnabled(can_match_selected);
     main_ui_->actionEditCopyDescription->setEnabled(can_match_selected);
     main_ui_->actionEditCopyFieldName->setEnabled(can_match_selected);
@@ -2135,7 +2153,7 @@ void WiresharkMainWindow::copySelectedItems(WiresharkMainWindow::CopySelected se
         }
         break;
     case CopyAllVisibleItems:
-        clip = proto_tree_->toString();
+        clip = packet_list_->createDetailedText(packet_list_->selectedRows());
         break;
     case CopyAllVisibleSelectedTreeItems:
         if (proto_tree_->selectionModel()->hasSelection()) {
@@ -3320,8 +3338,25 @@ void WiresharkMainWindow::applyExportObject()
 }
 
 void WiresharkMainWindow::openFollowStreamDialog(int proto_id, unsigned stream_num, unsigned sub_stream_num, bool use_stream_index) {
-    if (!main_ui_->actionShowFollowStreamWindow->isChecked())
+    if (!main_ui_->actionShowFollowStreamWindow->isChecked()) {
+        // When the toggle is off, just apply the follow filter in the main window
+        // without opening a new dialog.
+        register_follow_t *follower = get_follow_by_proto_id(proto_id);
+        if (!follower)
+            return;
+        QString follow_filter;
+        if (use_stream_index) {
+            follow_filter = gchar_free_to_qstring(get_follow_index_func(follower)(stream_num, sub_stream_num));
+        } else {
+            if (!capture_file_.capFile() || !capture_file_.capFile()->edt)
+                return;
+            follow_filter = gchar_free_to_qstring(get_follow_conv_func(follower)(capture_file_.capFile()->edt, &capture_file_.capFile()->edt->pi, &stream_num, &sub_stream_num));
+        }
+        if (!follow_filter.isEmpty()) {
+            filterPackets(follow_filter, true);
+        }
         return;
+    }
     FollowStreamDialog *fsd = new FollowStreamDialog(*this, capture_file_, proto_id);
     connect(fsd, &FollowStreamDialog::updateFilter, this, &WiresharkMainWindow::filterPackets);
     connect(fsd, &FollowStreamDialog::goToPacket, this, [=](int packet_num) {packet_list_->goToPacket(packet_num);});
@@ -4107,7 +4142,7 @@ void WiresharkMainWindow::showConversationsDialog()
     connect(conv_dialog, &ConversationDialog::filterAction, this, &WiresharkMainWindow::filterAction);
     connect(conv_dialog, &ConversationDialog::openFollowStreamDialog, this,
             [=](int proto_id, unsigned stream_num, unsigned sub_stream_num) {
-                openFollowStreamDialog(proto_id, stream_num, sub_stream_num);
+                openFollowStreamDialog(proto_id, stream_num, sub_stream_num, true);
             });
     connect(conv_dialog, &ConversationDialog::openTcpStreamGraph, this, &WiresharkMainWindow::openTcpStreamDialog);
     connect(conv_dialog, &ConversationDialog::openIOGraph, this,
@@ -4287,6 +4322,50 @@ void WiresharkMainWindow::rtpStreamsDialogSelectRtpStreams(QVector<rtpstream_id_
 void WiresharkMainWindow::rtpStreamsDialogDeselectRtpStreams(QVector<rtpstream_id_t *> stream_ids)
 {
     openTelephonyRtpStreamsDialog()->deselectRtpStream(stream_ids);
+}
+
+void WiresharkMainWindow::followStreamAutoDetect()
+{
+    if (!capture_file_.capFile() || !capture_file_.capFile()->edt)
+        return;
+
+    // Iterate through follow stream actions and pick the first enabled one.
+    // Priority order: TCP > TLS > UDP > QUIC > HTTP > others
+    // We rely on the menu order which is typically set up in a reasonable priority.
+    FollowStreamAction *best_action = nullptr;
+    foreach (FollowStreamAction *follow_action, main_ui_->menuFollow->findChildren<FollowStreamAction *>()) {
+        if (follow_action->isEnabled()) {
+            best_action = follow_action;
+            break;
+        }
+    }
+
+    if (best_action) {
+        openFollowStreamDialog(best_action->protoId());
+    }
+}
+
+void WiresharkMainWindow::copyPacketAsHexStream()
+{
+    if (!capture_file_.capFile() || !capture_file_.capFile()->edt)
+        return;
+
+    tvbuff_t *tvb = capture_file_.capFile()->edt->tvb;
+    if (!tvb)
+        return;
+
+    unsigned length = tvb_captured_length(tvb);
+    if (length == 0)
+        return;
+
+    const uint8_t *data_p = tvb_get_ptr(tvb, 0, length);
+    QString hex_str;
+    hex_str.reserve(length * 2);
+    for (unsigned i = 0; i < length; i++) {
+        hex_str.append(QString("%1").arg(data_p[i], 2, 16, QChar('0')));
+    }
+
+    mainApp->clipboard()->setText(hex_str);
 }
 
 #ifdef _MSC_VER

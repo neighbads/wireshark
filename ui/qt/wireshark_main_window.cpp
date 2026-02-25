@@ -417,6 +417,7 @@ WiresharkMainWindow::WiresharkMainWindow(QWidget *parent) :
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::applyGlobalCommandLineOptions);
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::zoomText);
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::initViewColorizeMenu);
+    connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::updateColorizeToolbarIcons);
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::addStatsPluginsToMenu);
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::addDynamicMenus);
     connect(mainApp, &MainApplication::appInitialized, this, &WiresharkMainWindow::addPluginIFStructures);
@@ -462,6 +463,7 @@ WiresharkMainWindow::WiresharkMainWindow(QWidget *parent) :
     connect(file_set_dialog_, &FileSetDialog::fileSetOpenCaptureFile, this, [=](QString cf_path) { openCaptureFile(cf_path); });
 
     initMainToolbarIcons();
+    initCustomToolbarButtons();
 
     main_ui_->displayFilterToolBar->insertWidget(main_ui_->actionNewDisplayFilterExpression, df_combo_box_);
 
@@ -2110,6 +2112,105 @@ void WiresharkMainWindow::initMainToolbarIcons()
     //main_ui_->actionViewRedissect->setIcon(StockIcon("x-capture-file-reload"));
 
     main_ui_->actionNewDisplayFilterExpression->setIcon(StockIcon("list-add"));
+}
+
+void WiresharkMainWindow::initCustomToolbarButtons()
+{
+    // Add a separator before our custom buttons
+    main_ui_->mainToolBar->addSeparator();
+
+    // Follow Stream Window toggle - show/hide follow stream dialog
+    main_ui_->mainToolBar->addAction(main_ui_->actionShowFollowStreamWindow);
+
+    // Follow Stream button - auto-detects the best stream type for the selected packet
+    action_toolbar_follow_stream_ = new QAction(this);
+    action_toolbar_follow_stream_->setIcon(StockIcon("x-follow-stream"));
+    //: Toolbar button tooltip: follow the stream of the selected packet
+    action_toolbar_follow_stream_->setToolTip(tr("Follow Stream"));
+    action_toolbar_follow_stream_->setEnabled(false);
+    main_ui_->mainToolBar->addAction(action_toolbar_follow_stream_);
+    connect(action_toolbar_follow_stream_, &QAction::triggered, this, &WiresharkMainWindow::followStreamAutoDetect);
+
+    // Separator between follow stream group and copy group
+    main_ui_->mainToolBar->addSeparator();
+
+    // Copy as CSV button
+    action_toolbar_copy_csv_ = new QAction(this);
+    action_toolbar_copy_csv_->setIcon(StockIcon("x-copy-csv"));
+    //: Toolbar button tooltip: copy packet list as CSV
+    action_toolbar_copy_csv_->setToolTip(tr("Copy Packet List as CSV"));
+    action_toolbar_copy_csv_->setEnabled(false);
+    main_ui_->mainToolBar->addAction(action_toolbar_copy_csv_);
+    connect(action_toolbar_copy_csv_, &QAction::triggered, this,
+            [this]() { copySelectedItems(CopyListAsCSV); });
+
+    // Copy as Hex Stream button
+    action_toolbar_copy_hex_stream_ = new QAction(this);
+    action_toolbar_copy_hex_stream_->setIcon(StockIcon("x-copy-hex"));
+    //: Toolbar button tooltip: copy packet bytes as hex stream
+    action_toolbar_copy_hex_stream_->setToolTip(tr("Copy Packet Bytes as Hex Stream"));
+    action_toolbar_copy_hex_stream_->setEnabled(false);
+    main_ui_->mainToolBar->addAction(action_toolbar_copy_hex_stream_);
+    connect(action_toolbar_copy_hex_stream_, &QAction::triggered, this, &WiresharkMainWindow::copyPacketAsHexStream);
+
+    // Copy Detailed Text button
+    action_toolbar_copy_detailed_text_ = new QAction(this);
+    action_toolbar_copy_detailed_text_->setIcon(StockIcon("x-copy-detail"));
+    //: Toolbar button tooltip: copy all visible items
+    action_toolbar_copy_detailed_text_->setToolTip(tr("Copy All Visible Items"));
+    action_toolbar_copy_detailed_text_->setEnabled(false);
+    main_ui_->mainToolBar->addAction(action_toolbar_copy_detailed_text_);
+    connect(action_toolbar_copy_detailed_text_, &QAction::triggered, this,
+            [this]() { copySelectedItems(CopyAllVisibleItems); });
+
+    // Colorize Conversation buttons (1-5)
+    main_ui_->mainToolBar->addSeparator();
+
+    QList<QAction *> cc_actions_list = QList<QAction *>()
+        << main_ui_->actionViewColorizeConversation1
+        << main_ui_->actionViewColorizeConversation2
+        << main_ui_->actionViewColorizeConversation3
+        << main_ui_->actionViewColorizeConversation4
+        << main_ui_->actionViewColorizeConversation5;
+
+    for (int i = 0; i < 5; i++) {
+        action_toolbar_colorize_[i] = new QAction(this);
+        //: Toolbar button tooltip: colorize conversation with color N
+        action_toolbar_colorize_[i]->setToolTip(tr("Colorize Conversation %1").arg(i + 1));
+        action_toolbar_colorize_[i]->setData(QVariant(i + 1));
+        action_toolbar_colorize_[i]->setEnabled(false);
+        main_ui_->mainToolBar->addAction(action_toolbar_colorize_[i]);
+
+        // Generate color icons from the color filter settings
+        const color_filter_t *colorf = color_filters_tmp_color(i + 1);
+        if (colorf) {
+            QColor bg = ColorUtils::fromColorT(colorf->bg_color);
+            QColor fg = ColorUtils::fromColorT(colorf->fg_color);
+            action_toolbar_colorize_[i]->setIcon(StockIcon::colorIcon(bg.rgb(), fg.rgb(), QString::number(i + 1)));
+        }
+
+        connect(action_toolbar_colorize_[i], &QAction::triggered, this, [this, i]() {
+            QList<QAction *> cc_actions = QList<QAction *>()
+                << main_ui_->actionViewColorizeConversation1
+                << main_ui_->actionViewColorizeConversation2
+                << main_ui_->actionViewColorizeConversation3
+                << main_ui_->actionViewColorizeConversation4
+                << main_ui_->actionViewColorizeConversation5;
+            cc_actions[i]->trigger();
+        });
+    }
+}
+
+void WiresharkMainWindow::updateColorizeToolbarIcons()
+{
+    for (int i = 0; i < 5; i++) {
+        const color_filter_t *colorf = color_filters_tmp_color(i + 1);
+        if (colorf) {
+            QColor bg = ColorUtils::fromColorT(colorf->bg_color);
+            QColor fg = ColorUtils::fromColorT(colorf->fg_color);
+            action_toolbar_colorize_[i]->setIcon(StockIcon::colorIcon(bg.rgb(), fg.rgb(), QString::number(i + 1)));
+        }
+    }
 }
 
 void WiresharkMainWindow::initShowHideMainWidgets()

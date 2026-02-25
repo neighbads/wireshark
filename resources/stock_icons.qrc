@@ -114,6 +114,12 @@
         <file>stock_icons/16x16/x-follow-stream@2x.png</file>
         <file>stock_icons/16x16/x-follow-stream-window.png</file>
         <file>stock_icons/16x16/x-follow-stream-window@2x.png</file>
+        <file>stock_icons/16x16/x-copy-csv.png</file>
+        <file>stock_icons/16x16/x-copy-csv@2x.png</file>
+        <file>stock_icons/16x16/x-copy-hex.png</file>
+        <file>stock_icons/16x16/x-copy-hex@2x.png</file>
+        <file>stock_icons/16x16/x-copy-detail.png</file>
+        <file>stock_icons/16x16/x-copy-detail@2x.png</file>
         <file>stock_icons/16x16/zoom-in.template.png</file>
         <file>stock_icons/16x16/zoom-in.template@2x.png</file>
         <file>stock_icons/16x16/zoom-original.template.png</file>
@@ -175,6 +181,12 @@
         <file>stock_icons/24x24/x-follow-stream@2x.png</file>
         <file>stock_icons/24x24/x-follow-stream-window.png</file>
         <file>stock_icons/24x24/x-follow-stream-window@2x.png</file>
+        <file>stock_icons/24x24/x-copy-csv.png</file>
+        <file>stock_icons/24x24/x-copy-csv@2x.png</file>
+        <file>stock_icons/24x24/x-copy-hex.png</file>
+        <file>stock_icons/24x24/x-copy-hex@2x.png</file>
+        <file>stock_icons/24x24/x-copy-detail.png</file>
+        <file>stock_icons/24x24/x-copy-detail@2x.png</file>
         <file>stock_icons/24x24/zoom-in.template.png</file>
         <file>stock_icons/24x24/zoom-in.template@2x.png</file>
         <file>stock_icons/24x24/zoom-original.template.png</file>

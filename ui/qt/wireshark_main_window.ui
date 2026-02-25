@@ -801,8 +801,6 @@
    <addaction name="actionViewNormalSize"/>
    <addaction name="actionViewResizeColumns"/>
    <addaction name="actionViewResetLayout"/>
-   <addaction name="separator"/>
-   <addaction name="actionShowFollowStreamWindow"/>
   </widget>
   <widget class="MainStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="displayFilterToolBar">

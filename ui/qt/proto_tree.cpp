@@ -813,6 +813,61 @@ QString ProtoTree::traverseTree(const QModelIndex & travTree, int identLevel) co
     return result;
 }
 
+static void expandedNodeToString(proto_node *node, QString &result, int indent, bool recurse = true)
+{
+    field_info *fi = PNODE_FINFO(node);
+    if (!fi)
+        return;
+
+    if (proto_item_is_hidden(node) && !prefs.display_hidden_proto_items)
+        return;
+
+    char label_str[ITEM_LABEL_LENGTH];
+    char *label_ptr;
+
+    if (fi->rep) {
+        label_ptr = fi->rep->representation;
+    } else {
+        label_ptr = label_str;
+        proto_item_fill_label(fi, label_str, NULL);
+    }
+
+    result.append(QStringLiteral("    ").repeated(indent));
+    if (proto_item_is_generated(node)) {
+        result.append('[');
+        result.append(label_ptr);
+        result.append(']');
+    } else {
+        result.append(label_ptr);
+    }
+    result.append('\n');
+
+    if (!recurse)
+        return;
+
+    // Recurse into all children (fully expanded)
+    for (proto_node *child = node->first_child; child; child = child->next) {
+        expandedNodeToString(child, result, indent + 1);
+    }
+}
+
+QString ProtoTree::expandedToString(proto_node *root_node)
+{
+    QString result;
+    if (!root_node)
+        return result;
+
+    int child_index = 0;
+    for (proto_node *child = root_node->first_child; child; child = child->next) {
+        // Skip expanding children for the first two top-level nodes
+        // (Frame and link-layer protocol) — only show their summary line.
+        bool recurse = (child_index >= 2);
+        expandedNodeToString(child, result, 0, recurse);
+        child_index++;
+    }
+    return result;
+}
+
 QString ProtoTree::toString(const QModelIndex &start_idx) const
 {
     QString tree_string = "";

@@ -1969,6 +1969,51 @@ QString PacketList::createHeaderSummaryText(SummaryCopyType type)
     return joinSummaryRow(col_parts, 0, type);
 }
 
+QString PacketList::createDetailedText(QList<int> rows)
+{
+    QString result;
+    if (rows.isEmpty() || !cap_file_)
+        return result;
+
+    // CSV header
+    result = createHeaderSummaryText(CopyAsCSV) + "\n";
+
+    foreach (int row, rows) {
+        QModelIndex idx = packet_list_model_->index(row, 0);
+        if (!idx.isValid())
+            continue;
+
+        // CSV summary line
+        result += createSummaryText(idx, CopyAsCSV) + "\n";
+
+        // Dissect the packet to get full proto tree
+        frame_data *fdata = getFDataForRow(row);
+        if (!fdata)
+            continue;
+
+        wtap_rec rec;
+        wtap_rec_init(&rec, DEFAULT_INIT_BUFFER_SIZE_2048);
+        if (!cf_read_record(cap_file_, fdata, &rec)) {
+            wtap_rec_cleanup(&rec);
+            continue;
+        }
+
+        epan_dissect_t edt;
+        epan_dissect_init(&edt, cap_file_->epan, true, true);
+        col_custom_prime_edt(&edt, &cap_file_->cinfo);
+        epan_dissect_run(&edt, cap_file_->cd_t, &rec, fdata, &cap_file_->cinfo);
+
+        result += ProtoTree::expandedToString(edt.tree);
+
+        epan_dissect_cleanup(&edt);
+        wtap_rec_cleanup(&rec);
+
+        result += "\n";
+    }
+
+    return result;
+}
+
 QStringList PacketList::createHeaderPartsForAligned()
 {
     QStringList hdr_parts;

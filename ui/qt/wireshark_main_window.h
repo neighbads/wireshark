@@ -190,6 +190,13 @@ private:
 
     QPointer<TLSKeylogDialog> tlskeylog_dialog_;
 
+    // Custom toolbar actions
+    QAction *action_toolbar_follow_stream_;
+    QAction *action_toolbar_copy_csv_;
+    QAction *action_toolbar_copy_hex_stream_;
+    QAction *action_toolbar_copy_detailed_text_;
+    QAction *action_toolbar_colorize_[5];
+
     void freeze();
     void thaw();
 
@@ -207,6 +214,8 @@ private:
     void captureStop(bool discard = false);
 
     void initMainToolbarIcons();
+    void initCustomToolbarButtons();
+    void updateColorizeToolbarIcons();
     void initShowHideMainWidgets();
     void initTimeDisplayFormatMenu();
     void initTimePrecisionFormatMenu();
@@ -507,6 +516,9 @@ private slots:
     QString findRtpStreams(QVector<rtpstream_id_t *> *stream_ids, bool reverse);
 
     void openTLSKeylogDialog();
+
+    void followStreamAutoDetect();
+    void copyPacketAsHexStream();
 
     friend class MainApplication;
 };

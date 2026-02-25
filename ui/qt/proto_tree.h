@@ -36,6 +36,7 @@ public:
     void clear();
     void restoreSelectedField();
     QString toString(const QModelIndex &start_idx = QModelIndex()) const;
+    static QString expandedToString(proto_node *root_node);
 
 protected:
 

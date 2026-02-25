@@ -1,259 +1,123 @@
-General Information
--------------------
+# Wireshark 增强版
 
-Wireshark is a network traffic analyzer, or "sniffer", for Linux, macOS,
-\*BSD and other Unix and Unix-like operating systems and for Windows.
-It uses Qt, a graphical user interface library, and libpcap and npcap as
-packet capture and filtering libraries.
+基于 Wireshark 官方源码的定制增强版本，专注于改善日常抓包分析的操作效率和用户体验。
 
-The Wireshark distribution also comes with TShark, which is a
-line-oriented sniffer (similar to Sun's snoop or tcpdump) that uses the
-same dissection, capture-file reading and writing, and packet filtering
-code as Wireshark, and with editcap, which is a program to read capture
-files and write the packets from that capture file, possibly in a
-different capture file format, and with some packets possibly removed
-from the capture.
+> 原始 README 已保存至 [README.md.old](README.md.old)。
 
-The official home of Wireshark is https://www.wireshark.org.
+## 说明
 
-The latest distribution can be found in the subdirectory https://www.wireshark.org/download
+本分支在上游 Wireshark 基础上，针对 Qt GUI 进行了一系列实用性增强，主要方向包括：
 
+- 为高频操作添加工具栏快捷按钮，减少右键菜单层级
+- 改进 Conversation / Expert Info 等对话框的交互体验
+- 添加中文（zh_CN）翻译
+- 完善 GitHub Actions CI/CD 流程，支持自动构建和发布
 
-Installation
-------------
+## 功能计划
 
-The Wireshark project builds and tests regularly on the following platforms:
+- [x] 工具栏常用按钮
+  - [x] 追踪流按钮、追踪流新窗口开关按钮
+  - [x] 内容拷贝按钮（Copy CSV / Hex Stream / Detailed Text）
+  - [x] 会话着色按钮（Colorize Conversation 1-5）
+  - [x] 多选数据包批量复制
+  - [ ] 自定义工具栏按钮配置界面
+- [x] 分析 - 专家信息窗口增强
+  - [x] 双击展开/折叠、Follow Stream 右键菜单、双击跟踪流
+  - [x] 显示过滤器与主窗口同步
+- [x] 统计 - 会话窗口增强
+  - [x] Follow Stream 右键菜单、双击跟踪流、忽略外部 retap
+  - [x] 显示过滤器与主窗口同步
+- [x] 默认配置文件（TCP Analysis）
+  - [x] StreamId 列 + YYYY-MM-DD 时间格式
+  - [x] 默认显示过滤器按钮（TCP Reset / Retrans / TLS Alert）
+- [x] GitHub Actions 版本发布
+  - [x] 自动构建与 tag 自动发布
+  - [x] PortableApps 便携版打包
+  - [x] 可配置软件更新地址
+- [x] 中英文翻译
+  - [x] 部分界面元素 zh_CN 翻译
+  - [ ] 完整的 zh_CN 翻译覆盖
 
-  - Linux (Ubuntu)
-  - Microsoft Windows
-  - macOS / {Mac} OS X
+## 功能详细说明
 
-Official installation packages are available for Microsoft Windows and
-macOS.
+### 1. 常用按钮添加
 
-It is available as either a standard or add-on package for many popular
-operating systems and Linux distributions including Debian, Ubuntu, Fedora,
-CentOS, RHEL, Arch, Gentoo, openSUSE, FreeBSD, DragonFly BSD, NetBSD, and
-OpenBSD.
+在主工具栏添加了常用数据包操作的快捷按钮，无需通过右键菜单即可快速执行。
 
-Additionally it is available through many third-party packaging systems
-such as pkgsrc, OpenCSW, Homebrew, and MacPorts.
+#### 1.1 追踪流按钮
 
-It should run on other Unix-ish systems without too much trouble.
+- **Follow Stream** — 一键跟踪当前数据包所属的流
+- **Follow Stream Window 开关** — 可切换按钮，控制是否弹出流跟踪窗口：
+  - 按钮按下时，Follow Stream 操作正常弹出流跟踪窗口
+  - 按钮弹起时，仅应用过滤器而不弹出窗口，适合只想快速过滤的场景
+  - 提供独立的 `x-follow-stream-window` 图标，与普通 Follow Stream 图标区分
 
-In some cases the current version of Wireshark might not support your
-operating system. This is the case for Windows XP, which is supported by
-Wireshark 1.10 and earlier. In other cases the standard package for
-Wireshark might simply be old. This is the case for Solaris and HP-UX.
+#### 1.2 内容拷贝按钮
 
-Python 3 is needed to build Wireshark. AsciiDoctor is required to build
-the documentation, including the man pages. Perl and flex are required
-to generate some of the source code.
+- **Copy as CSV** — 将选中数据包信息复制为 CSV 格式
+- **Copy Hex Stream** — 复制数据包的十六进制流
+- **Copy Detailed Text** — 复制数据包的详细协议树文本，支持多选数据包批量复制
+  - 自动折叠 Frame 和链路层顶层节点，只显示摘要行，减少冗余
 
-You must therefore install Python 3, AsciiDoctor, and GNU "flex" (vanilla
-"lex" won't work) on systems that lack them. You might need to install
-Perl as well.
+#### 1.3 会话着色按钮
 
-Full installation instructions can be found in the INSTALL file and in the
-Developer's Guide at https://www.wireshark.org/docs/wsdg_html_chunked/
+- **Colorize Conversation (1-5)** — 快速为会话着色标记
+- 着色按钮图标在颜色过滤器加载完成后自动刷新，确保显示正确的颜色
 
-See also the appropriate README._OS_ files for OS-specific installation
-instructions.
+### 2. 分析 - 专家信息窗口增强
 
-Usage
------
+对 Expert Information（分析 → 专家信息）对话框进行了交互改进：
 
-In order to capture packets from the network, you need to make the
-dumpcap program set-UID to root or you need to have access to the
-appropriate entry under `/dev` if your system is so inclined (BSD-derived
-systems, and systems such as Solaris and HP-UX that support DLPI,
-typically fall into this category).  Although it might be tempting to
-make the Wireshark and TShark executables setuid root, or to run them as
-root please don't.  The capture process has been isolated in dumpcap;
-this simple program is less likely to contain security holes and is thus
-safer to run as root.
+- **双击展开/折叠** — 双击严重级别分组行可切换展开/折叠状态
+- **Follow Stream 右键菜单** — 右键点击专家信息条目，根据当前数据包的协议层动态构建 Follow Stream 子菜单
+- **双击跟踪流** — 双击非分组行的专家信息条目，自动跳转到对应数据包并执行 Follow Stream；若目标数据包被当前过滤器过滤，会自动清除过滤器后重试
+- **显示过滤器同步** — 主窗口过滤器变更时，对话框的过滤器标签和"Limit to display filter"状态自动更新
 
-Please consult the man page for a description of each command-line
-option and interface feature.
+### 3. 统计 - 会话窗口增强
 
+对 Conversation（统计 → 会话）对话框进行了多项交互改进：
 
-Multiple File Types
--------------------
+- **Follow Stream 右键菜单** — 右键点击会话行，动态显示该会话支持的 Follow 协议（TCP/UDP/TLS 等），点击即可跟踪对应流
+- **双击跟踪流** — 双击会话行直接触发 Follow Stream，自动选择匹配的协议
+- **忽略外部 retap** — 当"Limit to display filter"未勾选时，外部操作触发的 retap 不会清空对话框数据
+- **默认绝对时间** — 会话对话框默认勾选绝对时间显示
+- **显示过滤器同步** — 主窗口过滤器变更时，对话框的过滤器标签自动更新
 
-Wireshark can read packets from a number of different file types.  See
-the Wireshark man page or the Wireshark User's Guide for a list of
-supported file formats.
+### 4. 默认配置文件（TCP Analysis）
 
-Wireshark can transparently read compressed versions of any of those files if
-the required compression library was available when Wireshark was compiled.
-Currently supported compression formats are:
+- 新增 **TCP Analysis** 配置文件（Profile），包含：
+  - `tcp.stream` 自定义列（StreamId）
+  - `YYYY-MM-DD` 绝对时间格式
+- 添加默认显示过滤器按钮：**TCP_Reset**、**TCP_Retrans**、**TLS_Alert**，方便快速过滤常见问题流量
 
-- GZIP
-- LZ4
-- ZSTD
+### 5. GitHub Actions 版本发布
 
-GZIP and LZ4 (when using independent blocks, which is the default) support
-fast random seeking, which offers much better GUI performance on large files.
-Any of these compression formats can be disabled at compile time by passing
-the corresponding option to cmake, i.e., `cmake -DENABLE_ZLIB=OFF`,
-`cmake -DENABLE_LZ4=OFF`, or `cmake -DENABLE_ZSTD=OFF`.
+- **自动发布** — tag 推送时自动创建 GitHub Release，包含安装包、PortableApps 便携包和 `stable.xml` appcast
+- **PortableApps 构建** — 在 CI 中集成 PortableApps 便携版打包
+- **可配置更新地址** — 支持通过 `SOFTWARE_UPDATE_FULL_URL` / `SOFTWARE_UPDATE_BASE_URL` 环境变量配置自定义更新服务器
+- **多平台发布上传** — Ubuntu、macOS、MSYS2 工作流均添加了 release 上传步骤
 
-Although Wireshark can read AIX iptrace files, the documentation on
-AIX's iptrace packet-trace command is sparse.  The `iptrace` command
-starts a daemon which you must kill in order to stop the trace. Through
-experimentation it appears that sending a HUP signal to that iptrace
-daemon causes a graceful shutdown and a complete packet is written
-to the trace file. If a partial packet is saved at the end, Wireshark
-will complain when reading that file, but you will be able to read all
-other packets.  If this occurs, please let the Wireshark developers know
-at wireshark-dev@wireshark.org; be sure to send us a copy of that trace
-file if it's small and contains non-sensitive data.
+### 6. 中英文翻译
 
-Support for Lucent/Ascend products is limited to the debug trace output
-generated by the MAX and Pipeline series of products.  Wireshark can read
-the output of the `wandsession`, `wandisplay`, `wannext`, and `wdd`
-commands.
+补充了以下界面元素的中文（zh_CN）翻译：
 
-Wireshark can also read dump trace output from the Toshiba "Compact Router"
-line of ISDN routers (TR-600 and TR-650). You can telnet to the router
-and start a dump session with `snoop dump`.
+- "Display raw data"（显示原始数据）
+- "Follow Stream…"（跟踪流…）
+- "Graph…"（图表…）
+- "I/O Graphs"（I/O 图表）
+- Follow Stream 相关工具提示
+- 工具栏按钮提示文本
 
-CoSine L2 debug output can also be read by Wireshark. To get the L2
-debug output first enter the diags mode and then use
-`create-pkt-log-profile` and `apply-pkt-lozg-profile` commands under
-layer-2 category. For more detail how to use these commands, you
-should examine the help command by `layer-2 create ?` or `layer-2 apply ?`.
+## 构建
 
-To use the Lucent/Ascend, Toshiba and CoSine traces with Wireshark, you must
-capture the trace output to a file on disk.  The trace is happening inside
-the router and the router has no way of saving the trace to a file for you.
-An easy way of doing this under Unix is to run `telnet <ascend> | tee <outfile>`.
-Or, if your system has the "script" command installed, you can save
-a shell session, including telnet, to a file. For example to log to a file
-named tracefile.out:
+```bash
+mkdir build && cd build
+cmake -GNinja ..
+ninja
+```
 
-~~~
-$ script tracefile.out
-Script started on <date/time>
-$ telnet router
-..... do your trace, then exit from the router's telnet session.
-$ exit
-Script done on <date/time>
-~~~
+详细构建说明请参考 [INSTALL](INSTALL) 和 [Developer's Guide](https://www.wireshark.org/docs/wsdg_html_chunked/)。
 
+## 许可证
 
-Name Resolution
----------------
-
-Wireshark will attempt to use reverse name resolution capabilities
-when decoding IPv4 and IPv6 packets.
-
-If you want to turn off name resolution while using Wireshark, start
-Wireshark with the `-n` option to turn off all name resolution (including
-resolution of MAC addresses and TCP/UDP/SMTP port numbers to names) or
-with the `-N mt` option to turn off name resolution for all
-network-layer addresses (IPv4, IPv6, IPX).
-
-You can make that the default setting by opening the Preferences dialog
-using the Preferences item in the Edit menu, selecting "Name resolution",
-turning off the appropriate name resolution options, and clicking "OK".
-
-
-SNMP
-----
-
-Wireshark can do some basic decoding of SNMP packets; it can also use
-the libsmi library to do more sophisticated decoding by reading MIB
-files and using the information in those files to display OIDs and
-variable binding values in a friendlier fashion.  CMake  will automatically
-determine whether you have the libsmi library on your system.  If you
-have the libsmi library but _do not_ want Wireshark to use it, you can run
-cmake with the `-DENABLE_SMI=OFF` option.
-
-How to Report a Bug
--------------------
-
-Wireshark is under constant development, so it is possible that you will
-encounter a bug while using it. Please report bugs at https://gitlab.com/wireshark/wireshark/-/issues.
-Be sure you enter into the bug:
-
-1. The complete build information from the "About Wireshark"
-   item in the Help menu or the output of `wireshark -v` for
-   Wireshark bugs and the output of `tshark -v` for TShark bugs;
-
-2. If the bug happened on Linux, the Linux distribution you were
-   using, and the version of that distribution;
-
-3. The command you used to invoke Wireshark, if you ran
-   Wireshark from the command line, or TShark, if you ran
-   TShark, and the sequence of operations you performed that
-   caused the bug to appear.
-
-If the bug is produced by a particular trace file, please be sure to
-attach to the bug a trace file along with your bug description.  If the
-trace file contains sensitive information (e.g., passwords), then please
-do not send it.
-
-If Wireshark died on you with a 'segmentation violation', 'bus error',
-'abort', or other error that produces a UNIX core dump file, you can
-help the developers a lot if you have a debugger installed.  A stack
-trace can be obtained by using your debugger ('gdb' in this example),
-the wireshark binary, and the resulting core file.  Here's an example of
-how to use the gdb command 'backtrace' to do so.
-
-~~~
-$ gdb wireshark core
-(gdb) backtrace
-..... prints the stack trace
-(gdb) quit
-$
-~~~
-
-The core dump file may be named "wireshark.core" rather than "core" on
-some platforms (e.g., BSD systems).  If you got a core dump with
-TShark rather than Wireshark, use "tshark" as the first argument to
-the debugger; the core dump may be named "tshark.core".
-
-License
--------
-
-Wireshark is distributed under the GNU GPLv2. See the file COPYING for
-the full text of the license. When in doubt the full text is the legally
-binding part. These notes are just to make it easier for people that are not
-familiar with the GPLv2.
-
-There are no restrictions on its use. There are restrictions on its distribution
-in source or binary form.
-
-Most parts of Wireshark are covered by a "GPL version 2 or later" license.
-Some files are covered by different licenses that are compatible with
-the GPLv2.
-
-As a notable exception, some utilities distributed with the Wireshark source are
-covered by other licenses that are not themselves directly compatible with the
-GPLv2. This is OK, as only the tools themselves are licensed this way, the
-output of the tools is not considered a derived work, and so can be safely
-licensed for Wireshark's use. An incomplete selection of these tools includes:
- - the pidl utility (tools/pidl) is licensed under the GPLv3+.
-
-Parts of Wireshark can be built and distributed as libraries. These
-parts are still covered by the GPL, and NOT by the Lesser General Public
-License or any other license.
-
-If you integrate all or part of Wireshark into your own application and you
-opt to publish or release it then the combined work must be released under
-the terms of the GPLv2.
-
-
-Disclaimer
-----------
-
-There is no warranty, expressed or implied, associated with this product.
-Use at your own risk.
-
-
-Gerald Combs <gerald@wireshark.org>
-
-Gilbert Ramirez <gram@alumni.rice.edu>
-
-Guy Harris <gharris@sonic.net>
+Wireshark 基于 GNU GPLv2 发布，详见 [COPYING](COPYING)。

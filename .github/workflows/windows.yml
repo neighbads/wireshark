@@ -2,6 +2,9 @@ name: Build Windows
 
 on: [push]
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     name: Build & Test
@@ -10,14 +13,33 @@ jobs:
       PLATFORM: x64
       WIRESHARK_BASE_DIR: C:\Development
       CMAKE_PREFIX_PATH: D:\a\wireshark\Qt\6.8.3\msvc2022_64
-      WIRESHARK_VERSION_EXTRA: -GithubActionBuild
+      # WIRESHARK_VERSION_EXTRA: -GithubActionBuild
+      WIRESHARK_VERSION_FLAVOR: "Modified by Neighbads"
+      WIRESHARK_UPDATE_FULL_URL: https://github.com/neighbads/wireshark/releases/latest/download/stable.xml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Choco install
-        run: choco install -y --force --no-progress xsltproc nsis
+        run: choco install -y --force --no-progress xsltproc nsis 7zip
+      - name: Install PortableApps tools
+        shell: powershell
+        run: |
+          $paDir = "C:\PortableApps"
+          New-Item -ItemType Directory -Force -Path $paDir
+
+          # Download PortableApps.com Launcher from SourceForge
+          $launcherUrl = "https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Launcher/PortableApps.comLauncher_2.2.9.paf.exe/download"
+          $launcherPaf = "$env:TEMP\PALauncher.paf.exe"
+          Invoke-WebRequest -Uri $launcherUrl -OutFile $launcherPaf -UserAgent "Wget"
+          7z x $launcherPaf -o"$paDir\PortableApps.comLauncher" -y
+
+          # Download PortableApps.com Installer from SourceForge
+          $installerUrl = "https://sourceforge.net/projects/portableapps/files/PortableApps.com%20Installer/PortableApps.comInstaller_3.9.10.paf.exe/download"
+          $installerPaf = "$env:TEMP\PAInstaller.paf.exe"
+          Invoke-WebRequest -Uri $installerUrl -OutFile $installerPaf -UserAgent "Wget"
+          7z x $installerPaf -o"$paDir\PortableApps.comInstaller" -y
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -61,8 +83,76 @@ jobs:
           msbuild /m /p:Configuration=RelWithDebInfo wireshark_nsis_prep.vcxproj
           msbuild /m /p:Configuration=RelWithDebInfo wireshark_nsis.vcxproj
         working-directory: build
+      - name: Build Portable pkg
+        run: msbuild /m /p:Configuration=RelWithDebInfo wireshark_portableapps.vcxproj
+        working-directory: build
       - name: Upload Windows packages
         uses: actions/upload-artifact@v4
         with:
           name: package
-          path: build/packaging/nsis/*exe
+          path: |
+            build/packaging/nsis/*exe
+            build/packaging/portableapps/*.paf.exe
+
+      - name: Generate update XML
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+
+          # Find the installer exe
+          INSTALLER=$(ls build/packaging/nsis/Wireshark-*-x64.exe 2>/dev/null | head -1)
+          if [ -z "$INSTALLER" ]; then
+            echo "Error: installer exe not found"
+            exit 1
+          fi
+          INSTALLER_NAME=$(basename "$INSTALLER")
+          INSTALLER_SIZE=$(stat -c%s "$INSTALLER")
+          INSTALLER_SHA256=$(sha256sum "$INSTALLER" | awk '{print $1}')
+          PUB_DATE=$(date -u '+%a, %d %b %Y %H:%M:%S GMT')
+          DOWNLOAD_URL="https://github.com/neighbads/wireshark/releases/download/${TAG}/${INSTALLER_NAME}"
+
+          # Generate stable.xml
+          cat > stable.xml << XMLEOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+          <channel>
+            <title>Wireshark Stable Release</title>
+            <link>https://github.com/neighbads/wireshark/releases</link>
+            <description>The latest stable release of Wireshark.</description>
+            <language>en</language>
+            <item>
+              <title>Version ${VERSION}</title>
+              <pubDate>${PUB_DATE}</pubDate>
+              <sparkle:minimumSystemVersion>10.0.0</sparkle:minimumSystemVersion>
+              <enclosure
+                url="${DOWNLOAD_URL}"
+                sparkle:version="${VERSION}" sparkle:shortVersionString="${VERSION}"
+                length="${INSTALLER_SIZE}"
+                type="application/octet-stream">
+                <!-- SHA256: ${INSTALLER_SHA256} -->
+              </enclosure>
+            </item>
+          </channel>
+          </rss>
+          XMLEOF
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          INSTALLER=$(ls build/packaging/nsis/Wireshark-*-x64.exe 2>/dev/null | head -1)
+          PORTABLE=$(ls build/packaging/portableapps/WiresharkPortable64_*.paf.exe 2>/dev/null | head -1)
+
+          FILES=("$INSTALLER" stable.xml)
+          [ -n "$PORTABLE" ] && FILES+=("$PORTABLE")
+
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" "${FILES[@]}" --clobber
+          else
+            gh release create "${TAG}" --title "Wireshark ${TAG#v}" --generate-notes "${FILES[@]}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

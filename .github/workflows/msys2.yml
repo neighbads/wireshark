@@ -2,6 +2,9 @@ name: Build MSYS2
 
 on: [push]
 
+permissions:
+  contents: write
+
 jobs:
   msys2-ucrt64:
     runs-on: windows-latest
@@ -34,6 +37,26 @@ jobs:
         with:
           name: nsis-installer
           path: build/packaging/nsis/wireshark-*-x64.exe
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          INSTALLER=$(ls build/packaging/nsis/wireshark-*-x64.exe 2>/dev/null | head -1)
+          if [ -z "$INSTALLER" ]; then
+            echo "Error: installer not found"
+            exit 1
+          fi
+          INSTALLER_NAME="wireshark-msys2-$(basename "$INSTALLER")"
+          cp "$INSTALLER" "$INSTALLER_NAME"
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" "$INSTALLER_NAME" --clobber
+          else
+            gh release create "${TAG}" --title "Wireshark ${TAG#v}" --generate-notes "$INSTALLER_NAME"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   install-nsis:
     runs-on: windows-latest

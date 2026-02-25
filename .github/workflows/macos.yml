@@ -2,6 +2,9 @@ name: Build MacOS
 
 on: [push]
 
+permissions:
+  contents: write
+
 jobs:
   macos:
     name: Build & Test
@@ -45,3 +48,20 @@ jobs:
         with:
           name: package
           path: build/run/*dmg
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          DMG=$(ls build/run/*.dmg 2>/dev/null | head -1)
+          if [ -z "$DMG" ]; then
+            echo "Error: dmg not found"
+            exit 1
+          fi
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            gh release upload "${TAG}" "$DMG" --clobber
+          else
+            gh release create "${TAG}" --title "Wireshark ${TAG#v}" --generate-notes "$DMG"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

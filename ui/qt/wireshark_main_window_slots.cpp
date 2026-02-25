@@ -3320,6 +3320,8 @@ void WiresharkMainWindow::applyExportObject()
 }
 
 void WiresharkMainWindow::openFollowStreamDialog(int proto_id, unsigned stream_num, unsigned sub_stream_num, bool use_stream_index) {
+    if (!main_ui_->actionShowFollowStreamWindow->isChecked())
+        return;
     FollowStreamDialog *fsd = new FollowStreamDialog(*this, capture_file_, proto_id);
     connect(fsd, &FollowStreamDialog::updateFilter, this, &WiresharkMainWindow::filterPackets);
     connect(fsd, &FollowStreamDialog::goToPacket, this, [=](int packet_num) {packet_list_->goToPacket(packet_num);});

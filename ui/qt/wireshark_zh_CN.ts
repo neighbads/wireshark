@@ -14899,6 +14899,14 @@ a:hover {
         <translation>重置布局</translation>
     </message>
     <message>
+        <source>Show Follow Stream Window</source>
+        <translation>显示追踪流窗口</translation>
+    </message>
+    <message>
+        <source>When checked, follow stream actions will show a new dialog window</source>
+        <translation>选中时，追踪流功能将显示新窗口</translation>
+    </message>
+    <message>
         <source>Seconds Since First Captured Packet</source>
         <translation type="unfinished"></translation>
     </message>

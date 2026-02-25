@@ -2093,6 +2093,7 @@ void WiresharkMainWindow::initMainToolbarIcons()
     main_ui_->actionGoNextHistoryPacket->setIcon(StockIcon("go-next"));
     main_ui_->actionGoAutoScroll->setIcon(StockIcon("x-stay-last"));
     main_ui_->actionAggregationView->setIcon(StockIcon("aggregation"));
+    main_ui_->actionShowFollowStreamWindow->setIcon(StockIcon("x-follow-stream-window"));
 
     main_ui_->actionViewColorizePacketList->setIcon(StockIcon("x-colorize-packets"));
 

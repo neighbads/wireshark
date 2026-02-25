@@ -801,6 +801,8 @@
    <addaction name="actionViewNormalSize"/>
    <addaction name="actionViewResizeColumns"/>
    <addaction name="actionViewResetLayout"/>
+   <addaction name="separator"/>
+   <addaction name="actionShowFollowStreamWindow"/>
   </widget>
   <widget class="MainStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="displayFilterToolBar">
@@ -2276,6 +2278,20 @@
    </property>
    <property name="shortcut">
     <string notr="true">Ctrl+Shift+W</string>
+   </property>
+  </action>
+  <action name="actionShowFollowStreamWindow">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show Follow Stream Window</string>
+   </property>
+   <property name="toolTip">
+    <string>Show Follow Stream Window</string>
    </property>
   </action>
   <action name="actionViewResizeColumns">

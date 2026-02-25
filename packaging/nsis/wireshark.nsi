@@ -615,6 +615,9 @@ File "${STAGING_DIR}\cfilters"
 ;IfFileExists colorfilters dont_overwrite_colorfilters
 File "${STAGING_DIR}\colorfilters"
 ;dont_overwrite_colorfilters:
+;IfFileExists dfilter_buttons dont_overwrite_dfilter_buttons
+File "${STAGING_DIR}\dfilter_buttons"
+;dont_overwrite_dfilter_buttons:
 ;IfFileExists dfilters dont_overwrite_dfilters
 File "${STAGING_DIR}\dfilters"
 ;dont_overwrite_dfilters:
@@ -1511,6 +1514,7 @@ Section "Un.Global Settings" un.SecGlobalSettings
 SectionIn 1 2
 Delete "$INSTDIR\cfilters"
 Delete "$INSTDIR\colorfilters"
+Delete "$INSTDIR\dfilter_buttons"
 Delete "$INSTDIR\dfilters"
 Delete "$INSTDIR\enterprises.tsv"
 Delete "$INSTDIR\smi_modules"

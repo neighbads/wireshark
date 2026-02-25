@@ -1,0 +1,13 @@
+####### User Interface: Columns ########
+
+# Packet list column format
+# Each pair of strings consists of a column title and its format
+gui.column.format:
+	"No.", "%m",
+	"StreamId", "%Cus:tcp.stream:0",
+	"Time", "%Yt",
+	"Source", "%s",
+	"Destination", "%d",
+	"Protocol", "%p",
+	"Length", "%L",
+	"Info", "%i"

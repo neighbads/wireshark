@@ -3412,6 +3412,8 @@ void WiresharkMainWindow::statCommandExpertInfo(const char *, void *)
     connect(expert_dialog->getExpertInfoView(), &ExpertInfoTreeView::goToPacket,
             this, [=](int packet_num) {packet_list_->goToPacket(packet_num);});
     connect(expert_dialog, &ExpertInfoDialog::filterAction, this, &WiresharkMainWindow::filterAction);
+    connect(expert_dialog, &ExpertInfoDialog::openFollowStreamDialog, this,
+            [=](int proto_id) { openFollowStreamDialog(proto_id); });
 
     expert_dialog->show();
 }

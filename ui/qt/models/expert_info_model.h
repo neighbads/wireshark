@@ -116,6 +116,9 @@ public:
     static tap_packet_status tapPacket(void *eid_ptr, struct _packet_info *pinfo, struct epan_dissect *, const void *data, tap_flags_t flags);
     static void tapDraw(void *eid_ptr);
 
+    void setIgnoreRetap(bool ignore);
+    bool ignoreRetap() const;
+
 private:
     CaptureFile& capture_file_;
 
@@ -123,6 +126,8 @@ private:
 
     bool group_by_summary_;
     ExpertPacketItem* root_;
+
+    bool ignore_retap_;
 
     QHash<enum ExpertSeverity, int> eventCounts_;
 };

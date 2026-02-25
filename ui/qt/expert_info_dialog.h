@@ -12,6 +12,8 @@
 
 #include <config.h>
 
+#include <epan/follow.h>
+
 #include "filter_action.h"
 #include "wireshark_dialog.h"
 #include <ui/qt/models/expert_info_model.h>
@@ -38,6 +40,7 @@ public:
 
 signals:
     void filterAction(QString filter, FilterAction::Action action, FilterAction::ActionType type);
+    void openFollowStreamDialog(int proto_id);
 
 private:
     Ui::ExpertInfoDialog *ui;
@@ -63,6 +66,7 @@ private slots:
 
     void showExpertInfoMenu(QPoint pos);
     void filterActionTriggered();
+    void followStream();
     void collapseTree();
     void expandTree();
 
@@ -70,6 +74,8 @@ private slots:
     void on_groupBySummaryCheckBox_toggled(bool);
     void on_searchLineEdit_textChanged(const QString &search_re);
     void on_buttonBox_helpRequested();
+
+    void treeDoubleClicked(const QModelIndex &index);
 };
 
 #endif // EXPERT_INFO_DIALOG_H

@@ -14,6 +14,7 @@
 
 #include <epan/epan_dissect.h>
 #include <epan/expert.h>
+#include <epan/follow.h>
 #include <epan/stat_tap_ui.h>
 #include <epan/tap.h>
 
@@ -107,7 +108,30 @@ ExpertInfoDialog::ExpertInfoDialog(QWidget &parent, CaptureFile &capture_file, Q
     ctx_menu_.addAction(expand);
     connect(expand, &QAction::triggered, this, &ExpertInfoDialog::expandTree);
 
+    // Add Follow Stream submenu
+    QMenu *follow_menu = ctx_menu_.addMenu(tr("Follow Stream"));
+    follow_iterate_followers(
+        [](const void *key _U_, void *value, void *userdata) -> bool {
+            register_follow_t *follow = (register_follow_t *)value;
+            QMenu *menu = (QMenu *)userdata;
+            int proto_id = get_follow_proto_id(follow);
+            QString proto_name = proto_get_protocol_short_name(find_protocol_by_id(proto_id));
+            QAction *action = menu->addAction(QStringLiteral("%1 Stream").arg(proto_name));
+            action->setData(proto_id);
+            return false;
+        }, follow_menu);
+    connect(follow_menu, &QMenu::triggered, this, [this](QAction *action) {
+        emit openFollowStreamDialog(action->data().toInt());
+    });
+
     connect(&cap_file_, &CaptureFile::captureEvent, this, &ExpertInfoDialog::captureEvent);
+
+    // Disable Qt's built-in expand/collapse on double-click so our
+    // treeDoubleClicked slot has sole control over the toggle.
+    ui->expertInfoTreeView->setExpandsOnDoubleClick(false);
+
+    connect(ui->expertInfoTreeView, &QTreeView::doubleClicked,
+            this, &ExpertInfoDialog::treeDoubleClicked);
 
     ProgressFrame::addToButtonBox(ui->buttonBox, &parent);
 
@@ -161,8 +185,17 @@ void ExpertInfoDialog::captureEvent(CaptureEvent e)
         case CaptureEvent::Started:
             ui->limitCheckBox->setEnabled(false);
             ui->groupBySummaryCheckBox->setEnabled(false);
+            if (!ui->limitCheckBox->isChecked()) {
+                expert_info_model_->setIgnoreRetap(true);
+            }
             break;
         case CaptureEvent::Finished:
+            if (expert_info_model_->ignoreRetap()) {
+                expert_info_model_->setIgnoreRetap(false);
+                ui->limitCheckBox->setEnabled(!file_closed_ && !display_filter_.isEmpty());
+                ui->groupBySummaryCheckBox->setEnabled(!file_closed_);
+                return;
+            }
             updateWidgets();
             break;
         default:
@@ -320,6 +353,56 @@ void ExpertInfoDialog::on_searchLineEdit_textChanged(const QString &search_re)
 void ExpertInfoDialog::on_buttonBox_helpRequested()
 {
     mainApp->helpTopicAction(HELP_EXPERT_INFO_DIALOG);
+}
+
+void ExpertInfoDialog::followStream()
+{
+    if (file_closed_ || !cap_file_.capFile())
+        return;
+
+    // Get the packet number from the current selection so we can ensure
+    // the correct packet is selected before following.
+    QModelIndex current = ui->expertInfoTreeView->currentIndex();
+    if (!current.isValid() || !current.parent().isValid())
+        return;
+    QModelIndex source_index = proxyModel_->mapToSource(current);
+    ExpertPacketItem *item = static_cast<ExpertPacketItem*>(source_index.internalPointer());
+    if (!item)
+        return;
+    unsigned packet_num = item->packetNum();
+
+    // The packet might not pass the current display filter (e.g., after a
+    // previous follow stream set a filter like "tcp.stream eq 0"). Try
+    // exact navigation first; if it fails, clear the filter and retry.
+    if (!cf_goto_frame(cap_file_.capFile(), packet_num, true)) {
+        cf_filter_packets(cap_file_.capFile(), NULL, true);
+        if (!cf_goto_frame(cap_file_.capFile(), packet_num, true))
+            return;
+    }
+
+    if (!cap_file_.capFile()->edt)
+        return;
+
+    int proto_id = proto_get_id_by_short_name("TCP");
+    emit openFollowStreamDialog(proto_id);
+}
+
+void ExpertInfoDialog::treeDoubleClicked(const QModelIndex &index)
+{
+    if (!index.isValid() || file_closed_)
+        return;
+
+    // Top-level item (severity group): toggle expand/collapse.
+    // Use column 0 because QTreeView tracks expand state on that column only.
+    if (!index.parent().isValid()) {
+        QModelIndex col0 = index.siblingAtColumn(0);
+        ui->expertInfoTreeView->setExpanded(col0,
+            !ui->expertInfoTreeView->isExpanded(col0));
+        return;
+    }
+
+    // Child item (packet-level): follow stream
+    followStream();
 }
 
 // Stat command + args

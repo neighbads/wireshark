@@ -94,7 +94,8 @@ ExpertInfoModel::ExpertInfoModel(CaptureFile& capture_file, QObject *parent) :
     QAbstractItemModel(parent),
     capture_file_(capture_file),
     group_by_summary_(true),
-    root_(createRootItem())
+    root_(createRootItem()),
+    ignore_retap_(false)
 {
 }
 
@@ -392,6 +393,9 @@ void ExpertInfoModel::tapReset(void *eid_ptr)
     if (!model)
         return;
 
+    if (model->ignoreRetap())
+        return;
+
     model->clear();
 }
 
@@ -402,6 +406,9 @@ tap_packet_status ExpertInfoModel::tapPacket(void *eid_ptr, struct _packet_info 
     tap_packet_status status = TAP_PACKET_DONT_REDRAW;
 
     if (!pinfo || !model || !expert_info)
+        return TAP_PACKET_DONT_REDRAW;
+
+    if (model->ignoreRetap())
         return TAP_PACKET_DONT_REDRAW;
 
     model->addExpertInfo(*expert_info);
@@ -419,6 +426,19 @@ void ExpertInfoModel::tapDraw(void *eid_ptr)
     if (!model)
         return;
 
+    if (model->ignoreRetap())
+        return;
+
     model->beginResetModel();
     model->endResetModel();
+}
+
+void ExpertInfoModel::setIgnoreRetap(bool ignore)
+{
+    ignore_retap_ = ignore;
+}
+
+bool ExpertInfoModel::ignoreRetap() const
+{
+    return ignore_retap_;
 }
